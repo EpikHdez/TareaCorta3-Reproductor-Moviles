@@ -1,5 +1,6 @@
 package erickhdez.com.musicplayer;
 
+import android.content.res.AssetManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.support.v7.app.AppCompatActivity;
@@ -13,8 +14,14 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -30,12 +37,15 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar trackProgressSeekBar;
     private SeekBar volumeSeekBar;
 
-    private ArrayList<Integer> tracksList;
+    private ArrayList<String> tracksList;
     private ArrayList<Track> tracksListUI;
 
+    private AssetManager assetManager;
     private TextView lyricsTextView;
 
     private int currentTrackIndex;
+    private List<List<String>> lyricsTimes;
+    private List<String> lyrics;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,9 +54,12 @@ public class MainActivity extends AppCompatActivity {
 
         currentTime = findViewById(R.id.txtCurrentTime);
         timeEndTextView = findViewById(R.id.txtTimeEnd);
+
         lyricsTextView = findViewById(R.id.lyricsTextView);
+        lyricsTextView.setText("");
 
         audioManager = (AudioManager) this.getSystemService(AUDIO_SERVICE);
+        assetManager = getAssets();
 
         setUpTracksListView();
         setUpSeekBars();
@@ -132,15 +145,13 @@ public class MainActivity extends AppCompatActivity {
         tracksList = new ArrayList<>();
         tracksListUI = new ArrayList<>();
         String trackName;
-        int trackId;
 
         for(Field track : tracks) {
             trackName = track.getName();
             Log.d("TrackName", "formatTracks: " + trackName);
-            trackId = getResources().getIdentifier(trackName, "raw" , getPackageName());
 
             tracksListUI.add(formatTrackInfo(trackName.split("0")));
-            tracksList.add(trackId);
+            tracksList.add(trackName);
         }
     }
 
@@ -193,7 +204,8 @@ public class MainActivity extends AppCompatActivity {
             mediaPlayer.release();
         }
 
-        int trackId = tracksList.get(trackPosition);
+        String trackName = tracksList.get(trackPosition);
+        int trackId = getResources().getIdentifier(trackName, "raw", getPackageName());
         mediaPlayer = MediaPlayer.create(this, trackId);
 
         mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
@@ -204,9 +216,40 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        openTrackLyrics(trackName);
         updateViewsForTrack();
         mediaPlayer.start();
         changeBtnPlayPauseImage(android.R.drawable.ic_media_pause);
+    }
+
+    private void openTrackLyrics(String trackName) {
+        lyricsTimes = null;
+        lyrics = null;
+
+        try {
+            InputStream inputStream = assetManager.open(String.format("%s.txt", trackName));
+            InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+            BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+            String line;
+            String[] lineParams;
+            String lineLyrics;
+
+            lyricsTimes = new LinkedList<>();
+            lyrics = new LinkedList<>();
+
+            while ((line = bufferedReader.readLine()) != null) {
+                line = line.replace("[", "");
+                lineParams = line.split("]");
+
+                lineLyrics = lineParams[lineParams.length - 1];
+                lineParams = Arrays.copyOf(lineParams, lineParams.length - 1);
+
+                lyricsTimes.add(Arrays.asList(lineParams));
+                lyrics.add(lineLyrics);
+            }
+        } catch(Exception e) {
+
+        }
     }
 
     /**
@@ -239,6 +282,40 @@ public class MainActivity extends AppCompatActivity {
                         public void run() {
                             trackProgressSeekBar.setProgress(progress);
                             currentTime.setText(time);
+                        }
+                    });
+                }
+            }
+        }, 0, 1000 );
+
+        new Timer().scheduleAtFixedRate(new TimerTask() {
+            int progress;
+            String time, lyric;
+            int index;
+
+            @Override
+            public void run() {
+                if(mediaPlayer.isPlaying()) {
+                    progress = mediaPlayer.getCurrentPosition();
+                    time = getTimeAsString(progress);
+                    index = 0;
+
+                    if(lyricsTimes != null) {
+                        for (List<String> times : lyricsTimes) {
+                            if (times.contains(time)) {
+                                lyric = lyrics.get(index);
+                            }
+
+                            index++;
+                        }
+                    } else {
+                        lyric = "";
+                    }
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            lyricsTextView.setText(lyric);
                         }
                     });
                 }
