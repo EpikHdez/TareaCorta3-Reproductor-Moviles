@@ -66,6 +66,25 @@ public class MainActivity extends AppCompatActivity {
 
         changeTrack(0);
         setUpUpdateTimer();
+        mediaPlayer.stop();
+    }
+
+    @Override
+    protected void onPause() {
+        mediaPlayer.pause();
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        mediaPlayer.pause();
+        super.onStop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mediaPlayer.start();
     }
 
     /**
@@ -261,33 +280,14 @@ public class MainActivity extends AppCompatActivity {
 
         trackProgressSeekBar.setMax(mediaPlayer.getDuration());
         trackProgressSeekBar.setProgress(0);
+
+        lyricsTextView.setText("");
     }
 
     /**
      *
      */
     private void setUpUpdateTimer() {
-        new Timer().scheduleAtFixedRate(new TimerTask() {
-            int progress;
-            String time;
-
-            @Override
-            public void run() {
-                if(mediaPlayer.isPlaying()) {
-                    progress = mediaPlayer.getCurrentPosition();
-                    time = getTimeAsString(progress);
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            trackProgressSeekBar.setProgress(progress);
-                            currentTime.setText(time);
-                        }
-                    });
-                }
-            }
-        }, 0, 1000 );
-
         new Timer().scheduleAtFixedRate(new TimerTask() {
             int progress;
             String time, lyric;
@@ -304,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
                         for (List<String> times : lyricsTimes) {
                             if (times.contains(time)) {
                                 lyric = lyrics.get(index);
+                                break;
                             }
 
                             index++;
@@ -315,6 +316,8 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            trackProgressSeekBar.setProgress(progress);
+                            currentTime.setText(time);
                             lyricsTextView.setText(lyric);
                         }
                     });
