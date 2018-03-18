@@ -66,7 +66,9 @@ public class MainActivity extends AppCompatActivity {
 
         changeTrack(0);
         setUpUpdateTimer();
+
         mediaPlayer.stop();
+        changeBtnPlayPauseImage(android.R.drawable.ic_media_play);
     }
 
     @Override
@@ -241,6 +243,10 @@ public class MainActivity extends AppCompatActivity {
         changeBtnPlayPauseImage(android.R.drawable.ic_media_pause);
     }
 
+    /**
+     *
+     * @param trackName
+     */
     private void openTrackLyrics(String trackName) {
         lyricsTimes = null;
         lyrics = null;
